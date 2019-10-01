@@ -7,11 +7,14 @@ defmodule Crony.Application do
   require Logger
 
   def start(_type, _args) do
+    import Supervisor.Spec
+
     # HACK to get exec running as root.
     Application.put_env(:exec, :root, true)
     {:ok, _} = Application.ensure_all_started(:erlexec)
 
     children = [
+      supervisor(Registry, [:unique, Crony.Registry]),
       Crony.ChromeServer.child_spec()
     ]
 
@@ -19,7 +22,7 @@ defmodule Crony.Application do
     otp_release = :erlang.system_info(:otp_release)
     Logger.info("Started application: Elixir `#{elixir_version}` on OTP `#{otp_release}`.")
 
-    opts = [strategy: :one_for_one, name: Crony.Supervisor]
+    opts = [strategy: :one_for_one, name: __MODULE__.Supervisor]
     Supervisor.start_link(children, opts)
   end
 end

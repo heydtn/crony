@@ -36,7 +36,8 @@ defmodule Crony.MixProject do
       {:flow, "~> 0.14"},
       {:jason, "~> 1.1"},
       {:plug, "~> 1.8.0"},
-      {:plug_cowboy, "~> 2.0.2"}
+      {:plug_cowboy, "~> 2.0.2"},
+      {:poolboy, "~> 1.5"}
     ]
   end
 

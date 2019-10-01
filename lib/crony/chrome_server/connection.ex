@@ -11,6 +11,8 @@ defmodule Crony.ChromeServer.Connection do
   """
 
   use GenServer
+  use Brex.Result
+
   require Logger
 
   alias ChromeRemoteInterface.Session
@@ -93,7 +95,9 @@ defmodule Crony.ChromeServer.Connection do
   Lists page sessions currently open to the chrome instance.
   """
   def list_pages(server) do
-    GenServer.call(server, :list_pages)
+    %{session: session} = GenServer.call(server, :get_state)
+
+    Session.list_pages(session)
   end
 
   @doc """
@@ -102,26 +106,43 @@ defmodule Crony.ChromeServer.Connection do
   def new_page(server) do
     %{session: session, page_wait_ms: pwms} = GenServer.call(server, :get_state)
 
-    Task.async(fn ->
-      {:ok, page} = Session.new_page(session)
+    Session.new_page(session)
+    |> fmap(fn page ->
       Process.sleep(pwms)
       page
     end)
-    |> Task.await()
   end
 
   @doc """
   Closes the page in the chrome instance.
   """
   def close_page(server, page) do
-    GenServer.cast(server, {:close_page, page})
+    %{session: session} = GenServer.call(server, :get_state)
+
+    Task.async(fn ->
+      Session.close_page(session, page["id"])
+    end)
+
+    :ok
   end
 
   @doc """
   Closes all open pages in the chrome instance.
   """
   def close_all_pages(server) do
-    GenServer.cast(server, :close_all_pages)
+    %{session: session} = GenServer.call(server, :get_state)
+
+    close_pages = fn pages ->
+      Task.async_stream(pages, fn page ->
+        Session.close_page(session, page["id"])
+      end)
+      |> Stream.run()
+    end
+
+    Session.list_pages(session)
+    |> fmap(close_pages)
+
+    :ok
   end
 
   ##
@@ -144,27 +165,6 @@ defmodule Crony.ChromeServer.Connection do
 
   def handle_call(:get_state, _from, state) do
     {:reply, state, state}
-  end
-
-  def handle_call(:list_pages, _from, state = %{session: session}) do
-    {:ok, pages} = Session.list_pages(session)
-    {:reply, pages, state}
-  end
-
-  @doc false
-  def handle_cast({:close_page, page}, state = %{session: session}) do
-    Session.close_page(session, page["id"])
-    {:noreply, state}
-  end
-
-  def handle_cast(:close_all_pages, state = %{session: session}) do
-    {:ok, pages} = Session.list_pages(session)
-
-    Enum.each(pages, fn page ->
-      Session.close_page(session, page["id"])
-    end)
-
-    {:noreply, state}
   end
 
   @doc false
@@ -200,8 +200,11 @@ defmodule Crony.ChromeServer.Connection do
   @log_head_size 19 * 8
 
   def handle_info({:stdout, pid, <<_::size(@log_head_size), ":WARNING:", msg::binary>>}, state) do
-    msg = String.replace(msg, "\r\n", "")
-    Logger.warn("[CHROME: #{inspect(pid)}] #{inspect(msg)}")
+    Task.async(fn ->
+      msg = String.replace(msg, "\r\n", "")
+      Logger.warn("[CHROME: #{inspect(pid)}] #{inspect(msg)}")
+    end)
+
     {:noreply, state}
   end
 
@@ -228,15 +231,21 @@ defmodule Crony.ChromeServer.Connection do
   end
 
   def handle_info({:stdout, pid, <<_::size(@log_head_size), ":ERROR:", msg::binary>>}, state) do
-    msg = String.replace(msg, "\r\n", "")
-    Logger.error("[CHROME: #{inspect(pid)}] #{inspect(msg)}")
+    Task.async(fn ->
+      msg = String.replace(msg, "\r\n", "")
+      Logger.error("[CHROME: #{inspect(pid)}] #{inspect(msg)}")
+    end)
+
     {:noreply, state}
   end
 
   def handle_info({device, pid, <<_::size(@log_head_size), ":VERBOSE1:", msg::binary>>}, state)
       when device == :stdout or device == :stderr do
-    msg = String.replace(msg, "\r\n", "")
-    Logger.debug("[CHROME: #{inspect(pid)}] #{inspect(msg)}")
+    Task.async(fn ->
+      msg = String.replace(msg, "\r\n", "")
+      Logger.debug("[CHROME: #{inspect(pid)}] #{inspect(msg)}")
+    end)
+
     {:noreply, state}
   end
 
@@ -282,21 +291,25 @@ defmodule Crony.ChromeServer.Connection do
   # Catch all
 
   def handle_info({:stdout, pid, msg}, state) do
-    msg = String.replace(msg, "\r\n", "")
+    Task.async(fn ->
+      msg = String.replace(msg, "\r\n", "")
 
-    unless msg == "" do
-      Logger.info("[CHROME: #{inspect(pid)}] stdout: #{inspect(msg)}")
-    end
+      unless msg == "" do
+        Logger.info("[CHROME: #{inspect(pid)}] stdout: #{inspect(msg)}")
+      end
+    end)
 
     {:noreply, state}
   end
 
   def handle_info({:stderr, pid, msg}, state) do
-    msg = String.replace(msg, "\r\n", "")
+    Task.async(fn ->
+      msg = String.replace(msg, "\r\n", "")
 
-    unless msg == "" do
-      Logger.error("[CHROME: #{inspect(pid)}] stderr: #{inspect(msg)}")
-    end
+      unless msg == "" do
+        Logger.error("[CHROME: #{inspect(pid)}] stderr: #{inspect(msg)}")
+      end
+    end)
 
     {:noreply, state}
   end
