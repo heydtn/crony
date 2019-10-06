@@ -9,8 +9,8 @@ defmodule Crony.Browser.PortPool do
   defmodule InvalidState do
   end
 
-  def start_link(range) do
-    GenServer.start_link(__MODULE__, range, name: __MODULE__)
+  def start_link(range, opts) do
+    GenServer.start_link(__MODULE__, range, opts)
   end
 
   def init(range) do
@@ -29,9 +29,9 @@ defmodule Crony.Browser.PortPool do
       ) do
     {result, ports_remaining} = :queue.out(ports)
 
-    state_updated_ports = %{state_current | ports: ports_remaining}
-
     perform_lease = fn port ->
+      state_updated_ports = %{state_current | ports: ports_remaining}
+
       lease_port_to(port, from, leases, state_updated_ports)
     end
 
@@ -51,26 +51,26 @@ defmodule Crony.Browser.PortPool do
   end
 
   def handle_call(
-        {:lease_port_for, pid},
+        {:lease_port_for, receiver_pid},
         _from,
         state_current
       )
-      when not is_pid(pid) do
+      when not is_pid(receiver_pid) do
     {:reply, {:error, :badarg}, state_current}
   end
 
   def handle_call(
-        {:lease_port_for, pid},
+        {:lease_port_for, receiver_pid},
         {_, call_ref},
         %{ports: ports, leases: leases} = state_current
       )
-      when is_pid(pid) do
+      when is_pid(receiver_pid) do
     {result, ports_remaining} = :queue.out(ports)
 
-    state_updated_ports = %{state_current | ports: ports_remaining}
-
     perform_lease = fn port ->
-      lease_port_to(port, {pid, call_ref}, leases, state_updated_ports)
+      state_updated_ports = %{state_current | ports: ports_remaining}
+
+      lease_port_to(port, {receiver_pid, call_ref}, leases, state_updated_ports)
     end
 
     result
@@ -89,14 +89,6 @@ defmodule Crony.Browser.PortPool do
   end
 
   def handle_call(
-        {:lease_port_for, _},
-        _from,
-        state
-      ) do
-    {:reply, {:error, :badarg}, state}
-  end
-
-  def handle_call(
         :get_state,
         _from,
         state
@@ -104,44 +96,29 @@ defmodule Crony.Browser.PortPool do
     {:reply, state, state}
   end
 
-  def handle_call(
-        {:release_port, port},
-        _from,
-        state
-      )
-      when not is_integer(port) do
-    {:reply, {:error, :badarg}, state}
+  def handle_call({:release_port, leased_port}, _from, state_current)
+      when not is_integer(leased_port) or not (leased_port >= 0 and leased_port <= 65535) do
+    {:reply, {:error, :badarg}, state_current}
   end
 
   def handle_call(
-        {:release_port, port},
+        {:release_port, leased_port},
         {caller_pid, _},
         %{leases: leases} = state
       )
-      when is_integer(port) do
+      when is_integer(leased_port) and leased_port >= 0 and leased_port <= 65535 do
     releaser = fn {pid, _} ->
       case pid == caller_pid do
-        true -> {:ok, release_port(port, state)}
+        true -> {:ok, release_port(leased_port, state)}
         false -> {:error, :invalid_origin}
       end
     end
 
-    perform_release = fn ->
-      DualMap.fetch_left(leases, port)
-      ~> releaser.()
-    end
-
-    is_port? = port >= 0 && port <= 65535
-
-    case is_port? do
-      true ->
-        case perform_release.() do
-          {:ok, state_new} -> {:reply, :ok, state_new}
-          {:error, result_err} -> {:reply, result_err, state}
-        end
-
-      false ->
-        {:reply, {:error, :badarg}, state}
+    DualMap.fetch_left(leases, leased_port)
+    ~> releaser.()
+    |> case do
+      {:ok, state_new} -> {:reply, :ok, state_new}
+      {:error, result_err} -> {:reply, result_err, state}
     end
   end
 
@@ -151,6 +128,7 @@ defmodule Crony.Browser.PortPool do
 
   def handle_info({:DOWN, ref, :process, _object, _reason}, state) do
     state_new = release_port_via_ref(ref, state)
+
     {:noreply, state_new}
   end
 
