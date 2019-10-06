@@ -6,26 +6,6 @@ defmodule Crony.Browser.PortPool.Leases do
 
   defstruct data: %DualMap{}
 
-  def lookup_by_port(%Leases{} = leases, port) do
-    app(leases, &DualMap.fetch_left(&1, port))
-  end
-
-  def lookup_by_monitor(%Leases{} = leases, monitor) do
-    app(leases, &DualMap.fetch_right(&1, monitor))
-  end
-
-  def put_new(%Leases{} = leases, {port, monitor}, lease) do
-    map(leases, &DualMap.put_new(&1, {port, monitor}, lease))
-  end
-
-  def port_for_monitor(%Leases{} = leases, monitor) do
-    app(leases, &DualMap.associated_left(&1, monitor))
-  end
-
-  def monitor_for_port(%Leases{} = leases, port) do
-    app(leases, &DualMap.associated_right(&1, port))
-  end
-
   def lease_to(%Leases{data: data} = leases, port, leaser_pid, call_ref) do
     monitor_ref = Process.monitor(leaser_pid)
 
@@ -65,13 +45,5 @@ defmodule Crony.Browser.PortPool.Leases do
     |> fmap(fn port ->
       {port, %{leases | data: DualMap.delete_right(data, monitor)}}
     end)
-  end
-
-  defp map(%Leases{data: data} = leases, fun) do
-    %{leases | data: fun.(data)}
-  end
-
-  defp app(%Leases{data: data}, fun) do
-    fun.(data)
   end
 end
