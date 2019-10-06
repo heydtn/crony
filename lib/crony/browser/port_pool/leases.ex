@@ -38,8 +38,8 @@ defmodule Crony.Browser.PortPool.Leases do
         Process.demonitor(monitor_ref)
         result_err
 
-      {:ok, leases_updated} ->
-        {:ok, {{port, call_ref}, leases_updated}}
+      {:ok, _} = updated ->
+        updated
     end
   end
 
@@ -52,10 +52,8 @@ defmodule Crony.Browser.PortPool.Leases do
       :nothing ->
         raise ArgumentError, "Unable to release #{port}: could not reference monitor"
     end)
-    |> fmap(fn _ ->
-      DualMap.delete_left(data, port)
-    end)
-    |> fmap(fn dm -> %{leases | data: dm} end)
+    |> fmap(&DualMap.delete_left(&1, port))
+    |> fmap(&%{leases | data: &1})
   end
 
   def release_by_monitor(%Leases{data: data} = leases, monitor) do
