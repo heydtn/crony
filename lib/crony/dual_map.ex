@@ -1,12 +1,19 @@
 defmodule Crony.DualMap do
   use Brex.Result
 
+  alias __MODULE__
+
   @compile {:inline, deassociated_right_for: 2, deassociated_left_for: 2}
 
   defstruct left: %{},
             right: %{}
 
-  def put_new(dualmap, {key_left, key_right}, value) do
+  @type t(left, right, val) :: %DualMap{
+          left: %{required(left) => {val, right}},
+          right: %{required(right) => {val, left}}
+        }
+
+  def(put_new(dualmap, {key_left, key_right}, value)) do
     preexisting_key? =
       Map.has_key?(dualmap.left, key_left) || Map.has_key?(dualmap.right, key_right)
 

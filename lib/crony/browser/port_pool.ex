@@ -10,6 +10,7 @@ defmodule Crony.Browser.PortPool do
     GenServer.start_link(__MODULE__, range, opts)
   end
 
+  @spec init(Range.t()) :: {:ok, State.t()}
   def init(range) do
     {:ok, State.init(range)}
   end

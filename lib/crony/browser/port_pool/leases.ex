@@ -1,11 +1,18 @@
 defmodule Crony.Browser.PortPool.Leases do
   use Brex.Result
 
-  alias Crony.DualMap
   alias __MODULE__
+  alias Crony.DualMap
+  alias Crony.Browser.PortPool.Ports
 
   defstruct data: %DualMap{}
 
+  @type t :: %Leases{
+          data: any
+        }
+
+  @spec lease_to(t(), Ports.port_number(), pid(), reference()) ::
+          {:error, any} | {:ok, t()}
   def lease_to(%Leases{data: data} = leases, port, leaser_pid, call_ref) do
     monitor_ref = Process.monitor(leaser_pid)
 
@@ -23,6 +30,7 @@ defmodule Crony.Browser.PortPool.Leases do
     end
   end
 
+  @spec release_by_port(t(), Ports.port_number()) :: {:error, any} | {:ok, t()}
   def release_by_port(%Leases{data: data} = leases, port) do
     DualMap.associated_right(data, port)
     |> fmap(fn
@@ -38,6 +46,7 @@ defmodule Crony.Browser.PortPool.Leases do
     end)
   end
 
+  @spec release_by_monitor(t(), reference()) :: {:error, any} | {:ok, t()}
   def release_by_monitor(%Leases{data: data} = leases, monitor) do
     DualMap.associated_left(data, monitor)
     |> fmap(fn
