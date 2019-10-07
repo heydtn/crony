@@ -1,7 +1,7 @@
-defmodule Crony.Browser.PortPool.State do
+defmodule Crony.BrowserPool.PortPool.State do
   use Brex.Result
 
-  alias Crony.Browser.PortPool.{Ports, Leases}
+  alias Crony.BrowserPool.PortPool.{Ports, Leases}
 
   alias __MODULE__
 

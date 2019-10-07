@@ -1,9 +1,9 @@
-defmodule Crony.Browser.PortPool.Leases do
+defmodule Crony.BrowserPool.PortPool.Leases do
   use Brex.Result
 
   alias __MODULE__
   alias Crony.DualMap
-  alias Crony.Browser.PortPool.Ports
+  alias Crony.BrowserPool.PortPool.Ports
 
   defstruct data: %DualMap{}
 

@@ -1,10 +1,10 @@
-defmodule Crony.Browser.PortPool do
+defmodule Crony.BrowserPool.PortPool do
   use GenServer
   use Brex.Result
 
   require Logger
 
-  alias Crony.Browser.PortPool.State
+  alias Crony.BrowserPool.PortPool.State
 
   def start_link(range, opts) do
     GenServer.start_link(__MODULE__, range, opts)
@@ -71,7 +71,7 @@ defmodule Crony.Browser.PortPool do
     State.release_by_monitor(state_current, ref)
     |> case do
       {:ok, state_new} ->
-        {:reply, :ok, state_new}
+        {:noreply, state_new}
 
       {:error, _} = result_err ->
         Logger.warn("Unable to port and monitor for reference #{ref}: #{inspect(result_err)}")

@@ -1,4 +1,4 @@
-defmodule Crony.Browser.PortPool.Ports do
+defmodule Crony.BrowserPool.PortPool.Ports do
   use Brex.Result
 
   alias __MODULE__
