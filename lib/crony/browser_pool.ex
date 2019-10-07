@@ -7,6 +7,10 @@ defmodule Crony.BrowserPool do
   @pool_name __MODULE__.Pool
   @browser_worker __MODULE__.Browser
 
+  @port_pool Crony.BrowserPool.PortPool
+  @port_pool_name Crony.BrowserPool.PortPool.Pool
+
+  @spec browser_pool_range :: Range.t()
   def browser_pool_range() do
     try do
       port_range_start =
@@ -28,6 +32,14 @@ defmodule Crony.BrowserPool do
     end
   end
 
+  @spec browser_worker_spec(Range.t()) :: [
+          {:max_overflow, integer()}
+          | {:name, {:local, atom()}}
+          | {:size, integer()}
+          | {:strategy, :fifo}
+          | {:worker_module, atom()},
+          ...
+        ]
   def browser_worker_spec(pool_range) do
     start..finish = pool_range
     pool_size = finish - start + 1
@@ -41,10 +53,11 @@ defmodule Crony.BrowserPool do
     ]
   end
 
+  @spec port_pool_args(Range.t()) :: [Range.t() | any]
   def port_pool_args(pool_range) do
     [
       pool_range,
-      [name: Crony.BrowserPool.PortPool.Pool]
+      [name: @port_pool_name]
     ]
   end
 
@@ -59,7 +72,7 @@ defmodule Crony.BrowserPool do
 
     children = [
       worker(
-        Crony.BrowserPool.PortPool,
+        @port_pool,
         port_pool_args(pool_range),
         restart: :permanent
       ),
