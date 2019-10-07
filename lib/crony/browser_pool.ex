@@ -32,14 +32,7 @@ defmodule Crony.BrowserPool do
     end
   end
 
-  @spec browser_worker_spec(Range.t()) :: [
-          {:max_overflow, integer()}
-          | {:name, {:local, atom()}}
-          | {:size, integer()}
-          | {:strategy, :fifo}
-          | {:worker_module, atom()},
-          ...
-        ]
+  @spec browser_worker_spec(Range.t()) :: [{atom(), term()}]
   def browser_worker_spec(pool_range) do
     start..finish = pool_range
     pool_size = finish - start + 1
@@ -62,7 +55,11 @@ defmodule Crony.BrowserPool do
   end
 
   def start_link(opts) do
-    Supervisor.start_link(@supervisor, :ok, opts)
+    default_opts = [name: __MODULE__]
+
+    final_opts = Keyword.merge(default_opts, opts)
+
+    Supervisor.start_link(@supervisor, :ok, final_opts)
   end
 
   def init(_args) do
@@ -71,16 +68,10 @@ defmodule Crony.BrowserPool do
     pool_range = browser_pool_range()
 
     children = [
-      worker(
-        @port_pool,
-        port_pool_args(pool_range),
-        restart: :permanent
-      ),
+      worker(@port_pool, port_pool_args(pool_range), restart: :permanent),
       :poolboy.child_spec(@pool_name, browser_worker_spec(pool_range))
     ]
 
-    opts = [strategy: :rest_for_one, name: @supervisor]
-
-    supervise(children, opts)
+    supervise(children, strategy: :rest_for_one)
   end
 end

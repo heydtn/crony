@@ -10,7 +10,7 @@ defmodule Crony do
   Once a connection is established the chrome page will be initialised
   and once the connection is closed, the chrome page will be closed.
   """
-  @spec connection() :: url()
+  @spec connection() :: nil
   def connection do
     # Crony.BrowserPool.connection(:chrome)
   end

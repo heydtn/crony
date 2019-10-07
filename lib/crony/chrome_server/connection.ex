@@ -318,7 +318,7 @@ defmodule Crony.ChromeServer.Connection do
   # Internal
 
   defp exec_options do
-    %{pty: true, stdin: true, stdout: true, stderr: true}
+    [pty: true, stdin: true, stdout: true, stderr: true]
   end
 
   defp default_opts do
