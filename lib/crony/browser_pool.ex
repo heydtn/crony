@@ -1,5 +1,6 @@
 defmodule Crony.BrowserPool do
   use Supervisor
+  use Brex.Result
 
   require Logger
 
@@ -53,6 +54,12 @@ defmodule Crony.BrowserPool do
       max_overflow: 0,
       strategy: :fifo
     ]
+  end
+
+  def transaction(fun) do
+    :poolboy.transaction(@pool_name, fn pid ->
+      fun.(pid)
+    end)
   end
 
   def start_link(opts) do

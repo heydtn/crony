@@ -21,8 +21,12 @@ defmodule Crony.BrowserPool.Browser do
     {:noreply, instance}
   end
 
-  def handle_call(:get_instance, instance) do
+  def handle_call(:get_instance, _from, instance) do
     {:reply, instance, instance}
+  end
+
+  def handle_call(_, _from, instance) do
+    {:reply, {:error, :invalid_message}, instance}
   end
 
   @doc """
