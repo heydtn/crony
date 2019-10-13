@@ -10,6 +10,8 @@ defmodule Crony.BrowserPool do
   @supervisor __MODULE__
   @pool_name __MODULE__.Pool
 
+  @transaction_timeout 99_999
+
   def child_spec(args) do
     %{
       id: __MODULE__,
@@ -57,9 +59,13 @@ defmodule Crony.BrowserPool do
   end
 
   def transaction(fun) do
-    :poolboy.transaction(@pool_name, fn pid ->
-      fun.(pid)
-    end)
+    :poolboy.transaction(
+      @pool_name,
+      fn pid ->
+        fun.(pid)
+      end,
+      @transaction_timeout
+    )
   end
 
   def start_link(opts) do
