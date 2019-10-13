@@ -44,7 +44,7 @@ config :crony, Crony.Endpoint,
   scheme: :http,
   port: envar.("CRONY_ENDPOINT_PORT") || "1330"
 
-config :crony, Crony.ChromeServer.Connection,
+config :crony, Crony.BrowserPool.Browser.Chrome,
   page_wait_ms: envar.("CRONY_CHROME_SERVER_PAGE_WAIT_MS") || "200",
   crash_dumps_dir: envar.("CHROME_CHROME_SERVER_CRASH_DUMPS_DIR") || "/tmp",
   verbose_logging: 0

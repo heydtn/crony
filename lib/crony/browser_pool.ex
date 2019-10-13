@@ -3,12 +3,21 @@ defmodule Crony.BrowserPool do
 
   require Logger
 
+  alias Crony.BrowserPool.PortPool
+  alias Crony.BrowserPool.Browser
+
   @supervisor __MODULE__
   @pool_name __MODULE__.Pool
-  @browser_worker __MODULE__.Browser
 
-  @port_pool Crony.BrowserPool.PortPool
-  @port_pool_name Crony.BrowserPool.PortPool.Pool
+  def child_spec(args) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, [args]},
+      restart: :permanent,
+      shutdown: :infinity,
+      type: :supervisor
+    }
+  end
 
   @spec browser_pool_range :: Range.t()
   def browser_pool_range() do
@@ -39,18 +48,10 @@ defmodule Crony.BrowserPool do
 
     [
       name: {:local, @pool_name},
-      worker_module: @browser_worker,
+      worker_module: Browser,
       size: pool_size,
       max_overflow: 0,
       strategy: :fifo
-    ]
-  end
-
-  @spec port_pool_args(Range.t()) :: [Range.t() | any]
-  def port_pool_args(pool_range) do
-    [
-      pool_range,
-      [name: @port_pool_name]
     ]
   end
 
@@ -63,15 +64,19 @@ defmodule Crony.BrowserPool do
   end
 
   def init(_args) do
-    import Supervisor.Spec
-
     pool_range = browser_pool_range()
 
     children = [
-      worker(@port_pool, port_pool_args(pool_range), restart: :permanent),
-      :poolboy.child_spec(@pool_name, browser_worker_spec(pool_range))
+      PortPool.child_spec(
+        range: pool_range,
+        name: PortPool.Pool
+      ),
+      :poolboy.child_spec(
+        @pool_name,
+        browser_worker_spec(pool_range)
+      )
     ]
 
-    supervise(children, strategy: :rest_for_one)
+    Supervisor.init(children, strategy: :rest_for_one)
   end
 end

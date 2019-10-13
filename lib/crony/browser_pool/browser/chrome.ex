@@ -1,4 +1,4 @@
-defmodule Crony.ChromeServer.Connection do
+defmodule Crony.BrowserPool.Browser.Chrome do
   @moduledoc """
   `GenServer` process which manages a port connection to a Chrome
   browser OS Process as well as a `ChromeRemoteInterface.Session` to
@@ -19,16 +19,6 @@ defmodule Crony.ChromeServer.Connection do
 
   @ready_check_ms 30_000
 
-  def child_spec(opts) do
-    %{
-      id: __MODULE__,
-      start: {__MODULE__, :start_link, [opts]},
-      restart: :permanent,
-      shutdown: 5000,
-      type: :worker
-    }
-  end
-
   @doc """
   Spanws a `Crony.ChromeServer` process which in turn starts an underlying
   chrome browser os process, which is managed by a shared lifetime allowing
@@ -40,6 +30,10 @@ defmodule Crony.ChromeServer.Connection do
 
   @doc false
   def init(args) do
+    {:ok, args, {:continue, :initialize_settings}}
+  end
+
+  def handle_continue(:initialize_settings, args) do
     config = Application.get_env(:crony, __MODULE__)
 
     opts =
@@ -48,14 +42,34 @@ defmodule Crony.ChromeServer.Connection do
       |> Keyword.merge(args)
 
     page_wait_ms =
-      Keyword.get(config, :page_wait_ms)
+      Keyword.get(opts, :page_wait_ms, "200")
       |> String.to_integer()
-
-    send(self(), :launch)
 
     Process.send_after(self(), :stop_if_not_ready, @ready_check_ms)
 
-    {:ok, %{options: opts, session: nil, page_wait_ms: page_wait_ms}}
+    state = %{options: opts, session: nil, page_wait_ms: page_wait_ms}
+
+    {:noreply, state, {:continue, :launch}}
+  end
+
+  def handle_continue(:launch, state = %{options: opts}) do
+    value_flags = ~w(
+        --remote-debugging-port=#{opts[:chrome_port]}
+        --crash-dumps-dir=#{opts[:crash_dumps_dir]}
+        --v=#{opts[:verbose_logging]}
+      )
+
+    chrome_path = String.replace(opts[:chrome_path], " ", "\\ ")
+
+    command =
+      [chrome_path, opts[:chrome_flags], value_flags]
+      |> List.flatten()
+      |> Enum.join(" ")
+
+    {:ok, pid, os_pid} = Exexec.run_link(command, exec_options())
+    state = Map.merge(%{command: command, pid: pid, os_pid: os_pid}, state)
+
+    {:noreply, state}
   end
 
   @doc """
@@ -72,7 +86,7 @@ defmodule Crony.ChromeServer.Connection do
     wait_ms = Keyword.get(opts, :wait_ms, 1000)
 
     try do
-      case GenServer.call(server, :ready, 30_000) do
+      case GenServer.call(server, :ready, @ready_check_ms) do
         :not_ready ->
           if retries > 0 do
             Process.sleep(wait_ms)
@@ -165,26 +179,6 @@ defmodule Crony.ChromeServer.Connection do
 
   def handle_call(:get_state, _from, state) do
     {:reply, state, state}
-  end
-
-  @doc false
-  def handle_info(:launch, state = %{options: opts}) do
-    value_flags = ~w(
-        --remote-debugging-port=#{opts[:chrome_port]}
-        --crash-dumps-dir=#{opts[:crash_dumps_dir]}
-        --v=#{opts[:verbose_logging]}
-      )
-
-    chrome_path = String.replace(opts[:chrome_path], " ", "\\ ")
-
-    command =
-      [chrome_path, opts[:chrome_flags], value_flags]
-      |> List.flatten()
-      |> Enum.join(" ")
-
-    {:ok, pid, os_pid} = Exexec.run_link(command, exec_options())
-    state = Map.merge(%{command: command, pid: pid, os_pid: os_pid}, state)
-    {:noreply, state}
   end
 
   def handle_info(:stop_if_not_ready, state = %{session: nil, os_pid: os_pid}) do

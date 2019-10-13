@@ -6,6 +6,16 @@ defmodule Crony.BrowserPool.PortPool do
 
   alias Crony.BrowserPool.PortPool.State
 
+  def child_spec([{:range, range} | args]) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, [range, args]},
+      restart: :permanent,
+      shutdown: 5000,
+      type: :worker
+    }
+  end
+
   def start_link(range, opts) do
     GenServer.start_link(__MODULE__, range, opts)
   end

@@ -7,15 +7,13 @@ defmodule Crony.Application do
   require Logger
 
   def start(_type, _args) do
-    import Supervisor.Spec
-
     # HACK to get exec running as root.
     Application.put_env(:exec, :root, true)
     {:ok, _} = Application.ensure_all_started(:erlexec)
 
     children = [
-      supervisor(Registry, [:unique, Crony.Registry]),
-      Crony.ChromeServer.child_spec()
+      Registry.child_spec(keys: :unique, name: Crony.Registry),
+      Crony.BrowserPool.child_spec([])
     ]
 
     elixir_version = System.version()
