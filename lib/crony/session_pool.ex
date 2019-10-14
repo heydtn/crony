@@ -7,7 +7,7 @@ defmodule Crony.SessionPool do
   @supervisor __MODULE__
   @pool_name __MODULE__.Pool
 
-  @session_timeout 99_999
+  @session_timeout :infinity
 
   def child_spec(args) do
     %{

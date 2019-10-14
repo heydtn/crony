@@ -10,7 +10,7 @@ defmodule Crony.BrowserPool do
   @supervisor __MODULE__
   @pool_name __MODULE__.Pool
 
-  @transaction_timeout 99_999
+  @transaction_timeout 10_000
 
   def child_spec(args) do
     %{
