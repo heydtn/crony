@@ -36,8 +36,13 @@ defmodule Crony.SessionPool.Session do
   def handle_call({:run_with_session, fun}, _from, {_browser, page} = session) do
     session_url = page["webSocketDebuggerUrl"]
     {:ok, page_session} = PageSession.start_link(session_url)
-    result = fun.(page_session)
-    PageSession.stop(page_session)
+
+    result =
+      try do
+        fun.(page_session)
+      after
+        PageSession.stop(page_session)
+      end
 
     {:reply, result, session, {:continue, :new_session}}
   end
