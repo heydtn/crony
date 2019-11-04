@@ -31,7 +31,7 @@ defmodule Crony.SessionPool do
 
   @spec page_count_limit :: any
   def page_count_limit() do
-    Application.get_env(__MODULE__, :page_count_limit, 400)
+    Application.get_env(__MODULE__, :page_count_limit, 40)
   end
 
   def start_link(opts) do

@@ -12,11 +12,11 @@ defmodule Crony.SessionPool.Session do
 
   @spec init(any) :: {:ok, nil, {:continue, :initialize}}
   def init(_opts) do
-    Process.flag(:trap_exit, true)
-
     {:ok, nil, {:continue, :initialize}}
   end
 
+  @spec handle_continue(:initialize | :new_session, any) ::
+          {:noreply, any} | {:noreply, nil, {:continue, :initialize}}
   def handle_continue(:initialize, _state) do
     {:ok, session} =
       BrowserPool.transaction(fn browser ->

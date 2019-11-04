@@ -13,7 +13,8 @@ defmodule Crony.Application do
 
     children = [
       Registry.child_spec(keys: :unique, name: Crony.Registry),
-      Crony.BrowserPool.child_spec([])
+      Crony.BrowserPool.child_spec([]),
+      Crony.SessionPool.child_spec([])
     ]
 
     elixir_version = System.version()
