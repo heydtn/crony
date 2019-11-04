@@ -133,11 +133,7 @@ defmodule Crony.BrowserPool.Browser.Chrome do
   def close_page(server, page) do
     %{session: session} = GenServer.call(server, :get_state)
 
-    Task.async(fn ->
-      Session.close_page(session, page["id"])
-    end)
-
-    :ok
+    Session.close_page(session, page["id"])
   end
 
   @doc """
